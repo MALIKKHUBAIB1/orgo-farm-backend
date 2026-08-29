@@ -17,15 +17,19 @@ function ensureDb() {
 }
 
 export default async function handler(req) {
-  try {
-    await ensureDb();
-  } catch (error) {
-    console.error("[vercel] db connect failed:", error.message);
-    return {
-      statusCode: 503,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ error: "Service temporarily unavailable" }),
-    };
+  const path = req.path || "";
+
+  if (!path.startsWith("/api/cron/") && !path.startsWith("/api/health")) {
+    try {
+      await ensureDb();
+    } catch (error) {
+      console.error("[vercel] db connect failed:", error.message);
+      return {
+        statusCode: 503,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: error.message }),
+      };
+    }
   }
   return base(req);
 }
