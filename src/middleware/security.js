@@ -6,12 +6,30 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ADMIN_HEADER = "x-admin-api-key";
 
 function getAllowedOrigins() {
-  const defaults = ["http://localhost:3000", "http://127.0.0.1:3000"];
+  const defaults = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://www.weorgofarm.in",
+    "https://weorgofarm.in",
+    "https://orgo-farm.vercel.app",
+  ];
   const extra = (process.env.CLIENT_ORIGIN || "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
   return [...new Set([...defaults, ...extra])];
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  const allowedOrigins = getAllowedOrigins();
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const host = new URL(origin).hostname;
+    return host === "vercel.app" || host.endsWith(".vercel.app") || host.endsWith(".onrender.com");
+  } catch {
+    return false;
+  }
 }
 
 function text(value, label, { min = 1, max }) {
@@ -44,7 +62,7 @@ export function configureCors(req, res, next) {
   const origin = req.get("origin");
   const allowedOrigins = getAllowedOrigins();
 
-  if (origin && !allowedOrigins.includes(origin))
+  if (origin && !isOriginAllowed(origin))
     return res.status(403).json({ error: "Origin is not allowed" });
 
   if (origin) {
