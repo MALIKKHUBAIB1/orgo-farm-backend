@@ -12,10 +12,10 @@ export async function createMessage(req, res) {
 
   try {
     const doc = await ContactMessage.create(message);
-    await sendContactEmails(message);
+    void sendContactEmails(message).catch((err) => console.error("[contact-email]", err.message));
     res.status(201).json({ id: doc._id, ok: true });
   } catch (error) {
-    console.error("[contact-email]", error.message);
+    console.error("[contact]", error.message);
     res.status(502).json({ error: "We could not send your message. Please try again." });
   }
 }
