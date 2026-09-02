@@ -3,6 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import productRoutes from "./routes/productRoutes.js";
 import curationRoutes from "./routes/curationRoutes.js";
+import shopSettingsRoutes from "./routes/shopSettingsRoutes.js";
+import testimonialRoutes from "./routes/testimonialRoutes.js";
+import heroSettingsRoutes from "./routes/heroSettingsRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import shopRoutes from "./routes/shopRoutes.js";
@@ -15,6 +18,7 @@ import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import faqRoutes from "./routes/faqRoutes.js";
 import instagramRoutes from "./routes/instagramRoutes.js";
 import { runNewsletterCron } from "./utils/newsletter.js";
+import { trackVisit } from "./middleware/trackVisit.js";
 import { configureCors, createRateLimiter, rejectUnsafeKeys, securityHeaders } from "./middleware/security.js";
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
@@ -26,6 +30,7 @@ export function createApp() {
   if (process.env.TRUST_PROXY === "true") app.set("trust proxy", 1);
   app.use(securityHeaders);
   app.use(configureCors);
+  app.use(trackVisit);
   app.use(express.static(PUBLIC_DIR, { fallthrough: true, maxAge: "30d", immutable: true, index: false }));
   app.use(express.json({ limit: "16kb", strict: true, type: "application/json" }));
   app.use(rejectUnsafeKeys);
@@ -49,6 +54,7 @@ export function createApp() {
   app.use("/api/curations", curationRoutes);
   app.use("/api/orders", orderRoutes);
   app.use("/api/contact", contactRoutes);
+  app.use("/api/shop-settings", shopSettingsRoutes);
   app.use("/api/shop", shopRoutes);
   app.use("/api/profile", profileRoutes);
   app.use("/api/auth", authRoutes);
@@ -58,6 +64,8 @@ export function createApp() {
   app.use("/api/subscriptions", subscriptionRoutes);
   app.use("/api/faqs", faqRoutes);
   app.use("/api/instagram", instagramRoutes);
+  app.use("/api/testimonials", testimonialRoutes);
+  app.use("/api/hero-settings", heroSettingsRoutes);
 
   app.use((req, res) => res.status(404).json({ error: "Not found" }));
 

@@ -8,8 +8,18 @@ import { Subscription } from "../models/Subscription.js";
 import { NewsletterReport } from "../models/NewsletterReport.js";
 import { Faq } from "../models/Faq.js";
 import { InstaPost } from "../models/InstaPost.js";
+import { Testimonial } from "../models/Testimonial.js";
 import { requireAdminUser } from "../middleware/adminAuth.js";
 import { validationError } from "../middleware/security.js";
+import { getShopSettings, putShopSettings } from "../controllers/shopSettingsController.js";
+import {
+  adminCreateTestimonial,
+  adminDeleteTestimonial,
+  adminUpdateTestimonial,
+  testimonialFields,
+} from "../controllers/testimonialController.js";
+import { getHeroSettings, putHeroSettings } from "../controllers/heroSettingsController.js";
+import { getVisitAnalytics } from "../controllers/analyticsController.js";
 import { runNewsletterCron } from "../utils/newsletter.js";
 
 const router = Router();
@@ -17,6 +27,22 @@ const router = Router();
 router.use(requireAdminUser);
 
 const OBJECT_ID_RX = /^[0-9a-f]{24}$/i;
+
+router.get("/shop-settings", getShopSettings);
+router.put("/shop-settings", putShopSettings);
+
+router.get("/hero-settings", getHeroSettings);
+router.put("/hero-settings", putHeroSettings);
+
+router.get("/analytics", getVisitAnalytics);
+
+router.get("/testimonials", async (req, res) => {
+  const testimonials = await Testimonial.find().sort({ sortOrder: 1, createdAt: -1 }).lean();
+  res.json(testimonials);
+});
+router.post("/testimonials", adminCreateTestimonial);
+router.patch("/testimonials/:id", adminUpdateTestimonial);
+router.delete("/testimonials/:id", adminDeleteTestimonial);
 
 router.get("/stats", async (req, res) => {
   try {
