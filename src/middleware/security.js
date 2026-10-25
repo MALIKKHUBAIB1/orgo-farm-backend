@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isIP } from "node:net";
 
 const SAFE_TEXT = /^[^<>\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -100,7 +101,11 @@ export function createRateLimiter({ windowMs, max, message }) {
       lastSweep = now;
     }
 
-    const key = req.ip || req.socket.remoteAddress || "unknown";
+    const cloudflareClientIp = req.get("cf-connecting-ip")?.trim();
+    const key =
+      cloudflareClientIp && isIP(cloudflareClientIp)
+        ? cloudflareClientIp
+        : req.ip || req.socket.remoteAddress || "unknown";
     const entry = hits.get(key);
     const current = !entry || entry.resetAt <= now ? { count: 0, resetAt: now + windowMs } : entry;
     current.count += 1;

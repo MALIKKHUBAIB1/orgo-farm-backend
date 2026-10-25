@@ -5,6 +5,7 @@ import {
   couponFields,
   couponIsAvailable,
 } from "../src/controllers/couponController.js";
+import { createRateLimiter } from "../src/middleware/security.js";
 
 test("percentage coupons honor their maximum discount", () => {
   assert.equal(
@@ -68,4 +69,42 @@ test("admin cannot create percentage discounts over 100 percent", () => {
       }),
     /cannot exceed 100/,
   );
+});
+
+test("rate limits use the Cloudflare client IP instead of a shared proxy IP", () => {
+  const limiter = createRateLimiter({ windowMs: 60_000, max: 1, message: "Too many requests" });
+  const createResponse = () => ({
+    headers: {},
+    set(headers) {
+      Object.assign(this.headers, headers);
+      return this;
+    },
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  });
+  const request = (clientIp) => ({
+    ip: "shared-cloudflare-proxy",
+    socket: { remoteAddress: "shared-cloudflare-proxy" },
+    get(name) {
+      return name === "cf-connecting-ip" ? clientIp : undefined;
+    },
+  });
+  let passed = 0;
+  const next = () => passed++;
+
+  const firstResponse = createResponse();
+  limiter(request("198.51.100.1"), firstResponse, next);
+  const secondResponse = createResponse();
+  limiter(request("198.51.100.2"), secondResponse, next);
+  const repeatedResponse = createResponse();
+  limiter(request("198.51.100.1"), repeatedResponse, next);
+
+  assert.equal(passed, 2);
+  assert.equal(repeatedResponse.statusCode, 429);
 });
