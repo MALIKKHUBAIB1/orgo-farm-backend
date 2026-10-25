@@ -18,6 +18,13 @@ const orderSchema = new mongoose.Schema(
     lines: { type: [lineSchema], required: true },
     subtotal: { type: Number, required: true, min: 0 },
     shippingFee: { type: Number, required: true, min: 0 },
+    discount: { type: Number, default: 0, min: 0 },
+    coupon: {
+      code: { type: String, default: "" },
+      message: { type: String, default: "" },
+      type: { type: String, enum: ["percent", "fixed", "shipping"] },
+      value: { type: Number, min: 0 },
+    },
     total: { type: Number, required: true, min: 0 },
     customer: {
       name: { type: String, required: true, trim: true, maxlength: 100 },

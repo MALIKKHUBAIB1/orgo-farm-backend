@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as ctrl from "../controllers/adminAuthController.js";
 import { requireAdminUser } from "../middleware/adminAuth.js";
 import { createLoginLimiter, createRateLimiter } from "../middleware/security.js";
+import { ah } from "../middleware/asyncHandler.js";
 
 const router = Router();
 
@@ -16,8 +17,8 @@ const setupLimiter = createRateLimiter({
   message: "Too many requests. Try again later.",
 });
 
-router.post("/login", loginLimiter, ctrl.adminLogin);
-router.get("/me", requireAdminUser, ctrl.adminMe);
-router.get("/setup", setupLimiter, ctrl.adminSetup);
+router.post("/login", loginLimiter, ah(ctrl.adminLogin));
+router.get("/me", requireAdminUser, ah(ctrl.adminMe));
+router.get("/setup", setupLimiter, ah(ctrl.adminSetup));
 
 export default router;

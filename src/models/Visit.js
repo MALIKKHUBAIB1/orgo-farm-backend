@@ -12,6 +12,8 @@ const visitSchema = new mongoose.Schema(
     referrer: { type: String, default: "" },
     city: { type: String, default: "" },
     country: { type: String, default: "" },
+    timezone: { type: String, default: "" },
+    language: { type: String, default: "" },
     took: { type: Number, default: 0 },
   },
   { timestamps: true, versionKey: false },

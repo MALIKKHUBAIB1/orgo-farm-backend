@@ -13,7 +13,7 @@ export async function getVisitAnalytics(req, res) {
       Visit.find({ createdAt: { $gte: since } })
         .sort({ createdAt: -1 })
         .limit(100)
-        .select("ip path browser os device city country referrer took createdAt")
+        .select("ip path browser os device city country timezone language referrer took createdAt")
         .lean(),
       Visit.aggregate([
         { $match: { createdAt: { $gte: since } } },

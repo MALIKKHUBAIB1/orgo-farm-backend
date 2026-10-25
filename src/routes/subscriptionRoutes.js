@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Subscription } from "../models/Subscription.js";
 import { createRateLimiter, validationError } from "../middleware/security.js";
+import { ah } from "../middleware/asyncHandler.js";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ const unsubscribeLimiter = createRateLimiter({
   message: "Too many requests. Try again later.",
 });
 
-router.post("/", subscribeLimiter, async (req, res) => {
+router.post("/", subscribeLimiter, ah(async (req, res) => {
   try {
     const raw = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
     if (raw.length > 254 || !EMAIL_RX.test(raw))
@@ -35,13 +36,13 @@ router.post("/", subscribeLimiter, async (req, res) => {
     if (error?.code === 11000) return res.json({ ok: true, subscribed: true });
     validationError(res, error);
   }
-});
+}));
 
-router.post("/unsubscribe", unsubscribeLimiter, async (req, res) => {
+router.post("/unsubscribe", unsubscribeLimiter, ah(async (req, res) => {
   const raw = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
   if (!raw) return res.status(400).json({ error: "Email is required" });
   await Subscription.updateOne({ email: raw }, { $set: { active: false } });
   res.json({ ok: true });
-});
+}));
 
 export default router;

@@ -1,5 +1,6 @@
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { calculateCouponDiscount, CouponError, findUsableCoupon } from "./couponController.js";
 import crypto from "node:crypto";
 import { parseOrder, validationError } from "../middleware/security.js";
 
@@ -35,6 +36,17 @@ export async function createOrder(req, res) {
 
   const subtotal = orderLines.reduce((s, l) => s + l.price * l.qty, 0);
   const shippingFee = shipping === "fast" ? FAST_SHIPPING_FEE : 0;
+  let coupon;
+  let discount = 0;
+  if (req.body?.couponCode) {
+    try {
+      coupon = await findUsableCoupon(req.body.couponCode);
+      discount = calculateCouponDiscount(coupon, subtotal, shippingFee);
+    } catch (error) {
+      if (error instanceof CouponError) return res.status(400).json({ error: error.message });
+      throw error;
+    }
+  }
 
   const order = await Order.create({
     id: newOrderId(),
@@ -42,7 +54,11 @@ export async function createOrder(req, res) {
     lines: orderLines,
     subtotal,
     shippingFee,
-    total: subtotal + shippingFee,
+    discount,
+    coupon: coupon
+      ? { code: coupon.code, message: coupon.message, type: coupon.type, value: coupon.value }
+      : undefined,
+    total: Math.max(0, subtotal + shippingFee - discount),
     customer,
     address,
     shipping,

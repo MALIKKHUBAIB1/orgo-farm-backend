@@ -6,6 +6,17 @@ import { markBaselineNotified, startNewsletterCron } from "./utils/newsletter.js
 import { ensureFaqs } from "./utils/faqSeed.js";
 
 async function main() {
+  // Last-resort safety net: an unexpected async error anywhere (e.g. a DB
+  // blip in a timer or background task) must NEVER kill the whole API again.
+  // Route handlers are wrapped with ah() so they return 500s; this only
+  // catches anything that still slips through — log it and stay alive.
+  process.on("unhandledRejection", (err) => {
+    console.error("[unhandledRejection] server staying alive:", err?.message ?? err);
+  });
+  process.on("uncaughtException", (err) => {
+    console.error("[uncaughtException] server staying alive:", err?.message ?? err);
+  });
+
   await connectDB();
   await ensureAdmin().catch((err) => console.error("[admin] ensure failed:", err.message));
   await ensureFaqs().catch((err) => console.error("[faq] seed failed:", err.message));

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { uploadImage, uploadToken } from "../controllers/uploadController.js";
 import { requireAdminUser } from "../middleware/adminAuth.js";
 import { createRateLimiter } from "../middleware/security.js";
+import { ah } from "../middleware/asyncHandler.js";
 
 const router = Router();
 
@@ -11,7 +12,7 @@ const uploadLimiter = createRateLimiter({
   message: "Too many uploads. Try again later.",
 });
 
-router.get("/token", requireAdminUser, uploadToken);
-router.post("/", requireAdminUser, uploadLimiter, uploadImage);
+router.get("/token", requireAdminUser, ah(uploadToken));
+router.post("/", requireAdminUser, uploadLimiter, ah(uploadImage));
 
 export default router;

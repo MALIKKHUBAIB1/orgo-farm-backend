@@ -21,6 +21,14 @@ import {
 import { getHeroSettings, putHeroSettings } from "../controllers/heroSettingsController.js";
 import { getVisitAnalytics } from "../controllers/analyticsController.js";
 import { runNewsletterCron } from "../utils/newsletter.js";
+import { adminDeleteReview, adminListReviews } from "../controllers/reviewController.js";
+import {
+  adminCreateCoupon,
+  adminDeleteCoupon,
+  adminListCoupons,
+  adminUpdateCoupon,
+} from "../controllers/couponController.js";
+import { ah } from "../middleware/asyncHandler.js";
 
 const router = Router();
 
@@ -28,23 +36,28 @@ router.use(requireAdminUser);
 
 const OBJECT_ID_RX = /^[0-9a-f]{24}$/i;
 
-router.get("/shop-settings", getShopSettings);
-router.put("/shop-settings", putShopSettings);
+router.get("/shop-settings", ah(getShopSettings));
+router.put("/shop-settings", ah(putShopSettings));
 
-router.get("/hero-settings", getHeroSettings);
-router.put("/hero-settings", putHeroSettings);
+router.get("/hero-settings", ah(getHeroSettings));
+router.put("/hero-settings", ah(putHeroSettings));
 
-router.get("/analytics", getVisitAnalytics);
+router.get("/analytics", ah(getVisitAnalytics));
 
-router.get("/testimonials", async (req, res) => {
+router.get("/testimonials", ah(async (req, res) => {
   const testimonials = await Testimonial.find().sort({ sortOrder: 1, createdAt: -1 }).lean();
   res.json(testimonials);
-});
-router.post("/testimonials", adminCreateTestimonial);
-router.patch("/testimonials/:id", adminUpdateTestimonial);
-router.delete("/testimonials/:id", adminDeleteTestimonial);
+}));
+router.post("/testimonials", ah(adminCreateTestimonial));
+router.patch("/testimonials/:id", ah(adminUpdateTestimonial));
+router.delete("/testimonials/:id", ah(adminDeleteTestimonial));
 
-router.get("/stats", async (req, res) => {
+router.get("/coupons", ah(adminListCoupons));
+router.post("/coupons", ah(adminCreateCoupon));
+router.patch("/coupons/:id", ah(adminUpdateCoupon));
+router.delete("/coupons/:id", ah(adminDeleteCoupon));
+
+router.get("/stats", ah(async (req, res) => {
   try {
     const [users, products, curations, messages, unread, ordersAgg, subscribers, broadcasts] =
       await Promise.all([
@@ -71,39 +84,39 @@ router.get("/stats", async (req, res) => {
   } catch (error) {
     validationError(res, error);
   }
-});
+}));
 
-router.get("/messages", async (req, res) => {
+router.get("/messages", ah(async (req, res) => {
   const messages = await ContactMessage.find().sort({ createdAt: -1 }).limit(100).lean();
   res.json(messages);
-});
+}));
 
-router.patch("/messages/:id", async (req, res) => {
+router.patch("/messages/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid message" });
   const read = Boolean(req.body?.read);
   const message = await ContactMessage.findByIdAndUpdate(req.params.id, { $set: { read } }, { new: true }).lean();
   if (!message) return res.status(404).json({ error: "Message not found" });
   res.json(message);
-});
+}));
 
-router.delete("/messages/:id", async (req, res) => {
+router.delete("/messages/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid message" });
   const message = await ContactMessage.findByIdAndDelete(req.params.id).lean();
   if (!message) return res.status(404).json({ error: "Message not found" });
   res.json({ ok: true });
-});
+}));
 
-router.get("/orders", async (req, res) => {
+router.get("/orders", ah(async (req, res) => {
   const orders = await Order.find().sort({ createdAt: -1 }).limit(10).select("id customer total status createdAt lines").lean();
   res.json(orders);
-});
+}));
 
-router.get("/subscriptions", async (req, res) => {
+router.get("/subscriptions", ah(async (req, res) => {
   const subscriptions = await Subscription.find().sort({ createdAt: -1 }).limit(200).lean();
   res.json(subscriptions);
-});
+}));
 
-router.patch("/subscriptions/:id", async (req, res) => {
+router.patch("/subscriptions/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid subscription" });
   const sub = await Subscription.findByIdAndUpdate(
     req.params.id,
@@ -112,28 +125,32 @@ router.patch("/subscriptions/:id", async (req, res) => {
   ).lean();
   if (!sub) return res.status(404).json({ error: "Subscription not found" });
   res.json(sub);
-});
+}));
 
-router.delete("/subscriptions/:id", async (req, res) => {
+router.delete("/subscriptions/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid subscription" });
   const sub = await Subscription.findByIdAndDelete(req.params.id).lean();
   if (!sub) return res.status(404).json({ error: "Subscription not found" });
   res.json({ ok: true });
-});
+}));
 
-router.get("/newsletter/reports", async (req, res) => {
+router.get("/newsletter/reports", ah(async (req, res) => {
   const reports = await NewsletterReport.find().sort({ createdAt: -1 }).limit(20).lean();
   res.json(reports);
-});
+}));
 
-router.post("/newsletter/run", async (req, res) => {
+router.get("/reviews", ah(adminListReviews));
+
+router.delete("/reviews/:id", ah(adminDeleteReview));
+
+router.post("/newsletter/run", ah(async (req, res) => {
   try {
     const result = await runNewsletterCron();
     res.json({ ok: true, ...result });
   } catch (error) {
     validationError(res, error);
   }
-});
+}));
 
 const FAQ_TEXT_RX = /^[^<>\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]*$/;
 
@@ -160,16 +177,16 @@ function faqFields(body, { partial = false } = {}) {
   return fields;
 }
 
-router.post("/faqs", async (req, res) => {
+router.post("/faqs", ah(async (req, res) => {
   try {
     const faq = await Faq.create(faqFields(req.body));
     res.status(201).json(faq.toObject());
   } catch (error) {
     validationError(res, error);
   }
-});
+}));
 
-router.patch("/faqs/:id", async (req, res) => {
+router.patch("/faqs/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid FAQ" });
   try {
     const faq = await Faq.findByIdAndUpdate(req.params.id, { $set: faqFields(req.body, { partial: true }) }, { new: true }).lean();
@@ -178,16 +195,16 @@ router.patch("/faqs/:id", async (req, res) => {
   } catch (error) {
     validationError(res, error);
   }
-});
+}));
 
-router.delete("/faqs/:id", async (req, res) => {
+router.delete("/faqs/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid FAQ" });
   const faq = await Faq.findByIdAndDelete(req.params.id).lean();
   if (!faq) return res.status(404).json({ error: "FAQ not found" });
   res.json({ ok: true });
-});
+}));
 
-router.post("/instagram", async (req, res) => {
+router.post("/instagram", ah(async (req, res) => {
   try {
     const exists = await InstaPost.findOne({ code: String(req.body?.code ?? "").trim() }).lean();
     if (exists) return res.status(409).json({ error: "A post with this code already exists" });
@@ -196,9 +213,9 @@ router.post("/instagram", async (req, res) => {
   } catch (error) {
     validationError(res, error);
   }
-});
+}));
 
-router.patch("/instagram/:id", async (req, res) => {
+router.patch("/instagram/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid post" });
   try {
     const body = instaFields(req.body, { partial: true });
@@ -212,14 +229,14 @@ router.patch("/instagram/:id", async (req, res) => {
   } catch (error) {
     validationError(res, error);
   }
-});
+}));
 
-router.delete("/instagram/:id", async (req, res) => {
+router.delete("/instagram/:id", ah(async (req, res) => {
   if (!OBJECT_ID_RX.test(req.params.id)) return res.status(400).json({ error: "Invalid post" });
   const post = await InstaPost.findByIdAndDelete(req.params.id).lean();
   if (!post) return res.status(404).json({ error: "Post not found" });
   res.json({ ok: true });
-});
+}));
 
 const INSTA_CODE_RX = /^[A-Za-z0-9_-]{4,20}$/;
 
